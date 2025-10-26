@@ -156,7 +156,11 @@
          const owner = 'Mango.691'; // Replace with your GitHub username
         const repo = '3sec'; // Replace with your repository name
         const token = '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'; // Replace with your GitHub token with repo scope
-        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/db.json`;
+        const apiUrl = 'https://api.github.com/repos/Mango.691/3sec/contents/db.json';
+fetch(apiUrl)
+  .then(res => res.json())
+  .then(data => console.log(data))
+  .catch(err => console.error(err));
 
         function createStars() {
             const starsContainer = document.getElementById('stars');
@@ -338,4 +342,5 @@
         });
     </script>
 </body>
+
 </html>
