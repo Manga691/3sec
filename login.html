@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        body {
+            background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+            overflow-x: hidden;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 2rem;
+        }
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .star {
+            position: absolute;
+            background: #ffffff;
+            border-radius: 50%;
+            opacity: 0.7;
+            animation: twinkle 3s infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.8; }
+        }
+        .container {
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            color: #ffffff;
+        }
+        .login-form {
+            text-align: center;
+            padding: 2rem;
+            background-color: #1f2937;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        input {
+            padding: 0.75rem 1rem;
+            border: 2px solid #4b5563;
+            border-radius: 0.5rem;
+            background-color: #1f2937;
+            color: #ffffff;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 300px;
+            margin-bottom: 1rem;
+        }
+        input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5);
+        }
+        button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            color: #ffffff;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            background-color: #2563eb;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            input, button {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.9rem;
+                max-width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    <div class="container">
+        <h1>Login</h1>
+        <div class="login-form">
+            <input type="text" id="usernameInput" placeholder="Enter Username">
+            <input type="password" id="keyInput" placeholder="Enter Key">
+            <button onclick="login()">Login</button>
+        </div>
+    </div>
+    <script>
+   const owner = 'Mango.691'; // Replace with your GitHub username
+        const repo = '3sec'; // Replace with your repository name
+        const token = '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'; // Replace with your GitHub token with repo scope
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/db.json`;
+
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = `${Math.random() * 3 + 1}px`;
+                star.style.height = star.style.width;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.animationDelay = `${Math.random() * 3}s`;
+                starsContainer.appendChild(star);
+            }
+        }
+
+        async function getDB() {
+            const res = await fetch(apiUrl, {
+                headers: {
+                    Accept: 'application/vnd.github.v3+json',
+                    Authorization: `token ${token}`
+                }
+            });
+            if (!res.ok) throw new Error('Failed to fetch db.json');
+            const data = await res.json();
+            const db = JSON.parse(atob(data.content));
+            db.sha = data.sha;
+            return db;
+        }
+
+        async function saveDB(db) {
+            const body = {
+                message: 'Update db.json',
+                content: btoa(JSON.stringify(db)),
+                sha: db.sha
+            };
+            const res = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `token ${token}`,
+                    Accept: 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error('Failed to update db.json');
+            const data = await res.json();
+            db.sha = data.content.sha;
+        }
+
+        async function login() {
+            const username = document.getElementById('usernameInput').value.trim();
+            const key = document.getElementById('keyInput').value.trim();
+            if (!username || !key) {
+                alert('Please enter both username and key.');
+                return;
+            }
+            let db;
+            try {
+                db = await getDB();
+            } catch (e) {
+                alert('Error fetching database');
+                return;
+            }
+            let user = db.users.find(u => u.username === username);
+            if (user) {
+                if (user.banned) {
+                    alert('This account is banned.');
+                    return;
+                }
+                if (user.key !== key) {
+                    alert('Invalid key for this username.');
+                    return;
+                }
+            } else {
+                if (!db.allowedKeys.includes(key)) {
+                    alert('Invalid key.');
+                    return;
+                }
+                user = { username, key, banned: false };
+                db.users.push(user);
+                db.allowedKeys = db.allowedKeys.filter(k => k !== key);
+                db.userData[username] = { tasks: [], subjects: [], history: [], quiz_weekly: [], quiz_monthly: [] };
+                try {
+                    await saveDB(db);
+                } catch (e) {
+                    alert('Error saving database');
+                    return;
+                }
+            }
+            localStorage.setItem('loggedIn', 'true');
+            localStorage.setItem('currentUsername', username);
+            if (db.adminKeys.includes(key)) {
+                localStorage.setItem('isAdmin', 'true');
+            } else {
+                localStorage.removeItem('isAdmin');
+            }
+            window.location.href = 'index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            createStars();
+        });
+
+        document.getElementById('usernameInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('keyInput').focus();
+        });
+
+        document.getElementById('keyInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+</html>

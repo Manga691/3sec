@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        body {
+            background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+            overflow-x: hidden;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 2rem;
+        }
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .star {
+            position: absolute;
+            background: #ffffff;
+            border-radius: 50%;
+            opacity: 0.7;
+            animation: twinkle 3s infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.8; }
+        }
+        .container {
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            color: #ffffff;
+        }
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .tabs button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            color: #ffffff;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            background-color: #2563eb;
+        }
+        .tabs button:hover {
+            background-color: #1d4ed8;
+        }
+        .tab-content {
+            background-color: #1f2937;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            display: none;
+        }
+        input {
+            padding: 0.75rem 1rem;
+            border: 2px solid #4b5563;
+            border-radius: 0.5rem;
+            background-color: #1f2937;
+            color: #ffffff;
+            font-size: 1rem;
+            width: 300px;
+            max-width: 100%;
+            margin-bottom: 1rem;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        ul li {
+            padding: 0.5rem;
+            background-color: #374151;
+            margin-bottom: 0.5rem;
+            border-radius: 0.375rem;
+        }
+        button.bg-green-600 {
+            background-color: #16a34a;
+        }
+        button.bg-green-600:hover {
+            background-color: #15803d;
+        }
+        button.bg-red-600 {
+            background-color: #dc2626;
+        }
+        button.bg-red-600:hover {
+            background-color: #b91c1c;
+        }
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            input, button {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.9rem;
+                max-width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    <div class="container">
+        <h1>Admin Dashboard</h1>
+        <button onclick="window.location.href='index.html'" style="background-color: #2563eb; padding: 0.75rem 1.5rem; border-radius: 0.5rem; color: #ffffff; cursor: pointer; border: none; font-size: 1rem; margin-bottom: 2rem;">Back to Planner</button>
+        <div class="tabs">
+            <button onclick="openTab('users')">Users</button>
+            <button onclick="openTab('generate')">Generate Keys</button>
+            <button onclick="openTab('ban')">Ban/Unban</button>
+            <button onclick="openTab('create')">Create Account</button>
+        </div>
+        <div id="users" class="tab-content">
+            <h2>Users (Total: <span id="userCount">0</span>)</h2>
+            <ul id="userList"></ul>
+        </div>
+        <div id="generate" class="tab-content">
+            <input id="newKey" placeholder="Enter new key (optional)">
+            <button onclick="addKey()" class="bg-green-600">Add Key</button>
+            <button onclick="generateKey()" class="bg-green-600">Generate Random Key</button>
+            <h2>Allowed Keys</h2>
+            <ul id="keyList"></ul>
+        </div>
+        <div id="ban" class="tab-content">
+            <input id="banUsername" placeholder="Enter username">
+            <button onclick="banUser()" class="bg-red-600">Ban</button>
+            <button onclick="unbanUser()" class="bg-green-600">Unban</button>
+            <h2>Banned Users</h2>
+            <ul id="bannedList"></ul>
+        </div>
+        <div id="create" class="tab-content">
+            <input id="newUsername" placeholder="Enter username">
+            <input id="newUserKey" placeholder="Enter key (optional)">
+            <button onclick="createAccount()" class="bg-green-600">Create Account</button>
+        </div>
+    </div>
+    <script>
+         const owner = 'Mango.691'; // Replace with your GitHub username
+        const repo = '3sec'; // Replace with your repository name
+        const token = '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'; // Replace with your GitHub token with repo scope
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/db.json`;
+
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = `${Math.random() * 3 + 1}px`;
+                star.style.height = star.style.width;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.animationDelay = `${Math.random() * 3}s`;
+                starsContainer.appendChild(star);
+            }
+        }
+
+        async function getDB() {
+            const res = await fetch(apiUrl, {
+                headers: {
+                    Accept: 'application/vnd.github.v3+json',
+                    Authorization: `token ${token}`
+                }
+            });
+            if (!res.ok) throw new Error('Failed to fetch db.json');
+            const data = await res.json();
+            const db = JSON.parse(atob(data.content));
+            db.sha = data.sha;
+            return db;
+        }
+
+        async function saveDB(db) {
+            const body = {
+                message: 'Update db.json',
+                content: btoa(JSON.stringify(db)),
+                sha: db.sha
+            };
+            const res = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `token ${token}`,
+                    Accept: 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error('Failed to update db.json');
+            const data = await res.json();
+            db.sha = data.content.sha;
+        }
+
+        let db = null;
+
+        async function openTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.style.display = 'none');
+            document.getElementById(tabName).style.display = 'block';
+            if (tabName === 'generate') loadKeys();
+            if (tabName === 'ban') loadBanned();
+            if (tabName === 'users') loadUsers();
+        }
+
+        function generateRandomKey() {
+            return 'key-' + Math.random().toString(36).substring(2, 10);
+        }
+
+        async function addKey() {
+            let key = document.getElementById('newKey').value.trim();
+            if (!key) {
+                key = generateRandomKey();
+            }
+            if (db.allowedKeys.includes(key)) {
+                alert('Key already exists.');
+                return;
+            }
+            db.allowedKeys.push(key);
+            await saveDB(db);
+            document.getElementById('newKey').value = '';
+            loadKeys();
+        }
+
+        async function generateKey() {
+            const key = generateRandomKey();
+            db.allowedKeys.push(key);
+            await saveDB(db);
+            loadKeys();
+        }
+
+        function loadUsers() {
+            document.getElementById('userCount').textContent = db.users.length;
+            const list = document.getElementById('userList');
+            list.innerHTML = '';
+            db.users.forEach(user => {
+                const li = document.createElement('li');
+                li.textContent = `${user.username} - Key: ${user.key} - Banned: ${user.banned ? 'Yes' : 'No'}`;
+                const banBtn = document.createElement('button');
+                banBtn.textContent = user.banned ? 'Unban' : 'Ban';
+                banBtn.className = user.banned ? 'bg-green-600' : 'bg-red-600';
+                banBtn.style.marginLeft = '10px';
+                banBtn.onclick = async () => {
+                    user.banned = !user.banned;
+                    await saveDB(db);
+                    loadUsers();
+                    loadBanned();
+                };
+                li.appendChild(banBtn);
+                list.appendChild(li);
+            });
+        }
+
+        function loadKeys() {
+            const list = document.getElementById('keyList');
+            list.innerHTML = '';
+            db.allowedKeys.forEach(key => {
+                const li = document.createElement('li');
+                li.textContent = key;
+                list.appendChild(li);
+            });
+        }
+
+        async function banUser() {
+            const username = document.getElementById('banUsername').value.trim();
+            if (!username) return alert('Enter username');
+            const user = db.users.find(u => u.username === username);
+            if (!user) return alert('User not found');
+            user.banned = true;
+            await saveDB(db);
+            loadBanned();
+            document.getElementById('banUsername').value = '';
+        }
+
+        async function unbanUser() {
+            const username = document.getElementById('banUsername').value.trim();
+            if (!username) return alert('Enter username');
+            const user = db.users.find(u => u.username === username);
+            if (!user) return alert('User not found');
+            user.banned = false;
+            await saveDB(db);
+            loadBanned();
+            document.getElementById('banUsername').value = '';
+        }
+
+        function loadBanned() {
+            const list = document.getElementById('bannedList');
+            list.innerHTML = '';
+            db.users.filter(u => u.banned).forEach(user => {
+                const li = document.createElement('li');
+                li.textContent = user.username;
+                list.appendChild(li);
+            });
+        }
+
+        async function createAccount() {
+            const username = document.getElementById('newUsername').value.trim();
+            let key = document.getElementById('newUserKey').value.trim();
+            if (!username) return alert('Enter username');
+            if (db.users.find(u => u.username === username)) return alert('Username exists');
+            if (!key) key = generateRandomKey();
+            db.users.push({ username, key, banned: false });
+            db.userData[username] = { tasks: [], subjects: [], history: [], quiz_weekly: [], quiz_monthly: [] };
+            await saveDB(db);
+            alert(`Account created for ${username} with key: ${key}`);
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newUserKey').value = '';
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('loggedIn') || localStorage.getItem('isAdmin') !== 'true') {
+                window.location.href = 'login.html';
+                return;
+            }
+            try {
+                db = await getDB();
+            } catch (e) {
+                alert('Error fetching database');
+                window.location.href = 'login.html';
+                return;
+            }
+            createStars();
+            openTab('users');
+        });
+    </script>
+</body>
+</html>

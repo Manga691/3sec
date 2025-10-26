@@ -1,0 +1,9 @@
+{
+  "users": [
+    { "username": "admin", "key": "admin", "banned": false },
+    { "username": "NA", "key": "NA12", "banned": false }
+  ],
+  "allowedKeys": ["11221", "Free-a4CZ6"],
+  "adminKeys": ["admin", "NA12"],
+  "userData": {}
+}

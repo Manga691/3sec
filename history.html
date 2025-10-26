@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task History </title>
+    <style>
+        body {
+            background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+            overflow-x: hidden;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 2rem;
+        }
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .star {
+            position: absolute;
+            background: #ffffff;
+            border-radius: 50%;
+            opacity: 0.7;
+            animation: twinkle 3s infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.8; }
+        }
+        .container {
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            color: #ffffff;
+        }
+        .username-display {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #ffffff;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 3rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        table {
+            width: 100%;
+            background-color: #1f2937;
+            opacity: 0.8;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 0.75rem;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 1rem;
+            border: 1px solid #4b5563;
+            text-align: left;
+        }
+        th {
+            background-color: #111827;
+            font-weight: 600;
+        }
+        td.text-center {
+            text-align: center;
+        }
+        button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            color: #ffffff;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            width: 200px;
+            max-width: 100%;
+        }
+        .bg-red-600 {
+            background-color: #dc2626;
+        }
+        .bg-red-600:hover {
+            background-color: #b91c1c;
+        }
+        .bg-blue-600 {
+            background-color: #2563eb;
+        }
+        .bg-blue-600:hover {
+            background-color: #1d4ed8;
+        }
+        .bg-purple-600 {
+            background-color: #7c3aed;
+        }
+        .bg-purple-600:hover {
+            background-color: #6d28d9;
+        }
+        .hidden {
+            display: none;
+        }
+        input[type="checkbox"] {
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            button {
+                width: 100%;
+                max-width: 300px;
+                margin-bottom: 0.5rem;
+            }
+            table {
+                font-size: 0.9rem;
+            }
+            th, td {
+                padding: 0.75rem;
+            }
+        }
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .username-display {
+                font-size: 1.2rem;
+            }
+            .controls {
+                gap: 0.5rem;
+            }
+            button {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.9rem;
+                max-width: 250px;
+            }
+            table {
+                font-size: 0.8rem;
+            }
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    <div class="container">
+        <div id="usernameDisplay" class="username-display"></div>
+        <div id="historyContent">
+            <h1>Task History</h1>
+            <div class="controls">
+                <button onclick="window.location.href='index.html'" class="bg-blue-600">Back to Planner</button>
+                <button onclick="window.location.href='dashboard.html'" class="bg-purple-600">View Dashboard</button>
+            </div>
+            <table id="historyTable">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                        <th>Creation Date</th>
+                        <th>Last Modified</th>
+                        <th>Completion Date</th>
+                        <th>Day</th>
+                        <th>Task</th>
+                        <th>Deadline</th>
+                        <th class="text-center">Done</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="historyList"></tbody>
+            </table>
+            <button onclick="clearSelectedTasks()" class="mt-4 bg-red-600">Clear Selected Tasks</button>
+        </div>
+    </div>
+    <script>
+      const owner = 'Mango.691'; // Replace with your GitHub username
+        const repo = '3sec'; // Replace with your repository name
+        const token = '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'; // Replace with your GitHub token with repo scope
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/db.json`;
+
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        let currentUsername = '';
+        let db = null;
+
+        async function getDB() {
+            const res = await fetch(apiUrl, {
+                headers: {
+                    Accept: 'application/vnd.github.v3+json',
+                    Authorization: `token ${token}`
+                }
+            });
+            if (!res.ok) throw new Error('Failed to fetch db.json');
+            const data = await res.json();
+            const db = JSON.parse(atob(data.content));
+            db.sha = data.sha;
+            return db;
+        }
+
+        async function saveDB(db) {
+            const body = {
+                message: 'Update db.json',
+                content: btoa(JSON.stringify(db)),
+                sha: db.sha
+            };
+            const res = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `token ${token}`,
+                    Accept: 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error('Failed to update db.json');
+            const data = await res.json();
+            db.sha = data.content.sha;
+        }
+
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = `${Math.random() * 3 + 1}px`;
+                star.style.height = star.style.width;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.animationDelay = `${Math.random() * 3}s`;
+                starsContainer.appendChild(star);
+            }
+        }
+
+        function loadHistory() {
+            if (!currentUsername) return;
+            const history = db.userData[currentUsername].history || [];
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            history.forEach((entry, index) => {
+                const row = document.createElement('tr');
+                row.dataset.id = entry.id;
+                row.innerHTML = `
+                    <td class="text-center"><input type="checkbox" class="task-select" data-index="${index}"></td>
+                    <td>${entry.creationDate || '-'}</td>
+                    <td>${entry.lastModifiedDate || '-'}</td>
+                    <td>${entry.completionDate || '-'}</td>
+                    <td>${entry.day || '-'}</td>
+                    <td>${entry.taskText || '-'}</td>
+                    <td>${entry.deadline || '-'}</td>
+                    <td class="text-center">${entry.done ? '✅' : '⬜'}</td>
+                    <td class="text-center">${entry.deleted ? 'Deleted' : 'Active'}</td>
+                `;
+                historyList.appendChild(row);
+            });
+            updateSelectAllCheckbox();
+        }
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.task-select');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+        }
+
+        function updateSelectAllCheckbox() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.task-select');
+            const allChecked = Array.from(checkboxes).every(checkbox => checkbox.checked);
+            const someChecked = Array.from(checkboxes).some(checkbox => checkbox.checked);
+            selectAll.checked = allChecked;
+            selectAll.indeterminate = someChecked && !allChecked;
+        }
+
+        async function clearSelectedTasks() {
+            if (!currentUsername) return;
+            const checkboxes = document.querySelectorAll('.task-select:checked');
+            if (checkboxes.length === 0) {
+                alert('Please select at least one task to clear.');
+                return;
+            }
+            if (confirm('Are you sure you want to clear the selected tasks?')) {
+                let history = db.userData[currentUsername].history || [];
+                const indicesToRemove = Array.from(checkboxes).map(checkbox => parseInt(checkbox.dataset.index)).sort((a, b) => b - a);
+                indicesToRemove.forEach(index => history.splice(index, 1));
+                db.userData[currentUsername].history = history;
+                await saveDB(db);
+                loadHistory();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('loggedIn')) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUsername = localStorage.getItem('currentUsername');
+            try {
+                db = await getDB();
+            } catch (e) {
+                alert('Error fetching database');
+                window.location.href = 'login.html';
+                return;
+            }
+            document.getElementById('usernameDisplay').textContent = `Welcome, ${currentUsername}`;
+            createStars();
+            loadHistory();
+        });
+    </script>
+</body>
+</html>
